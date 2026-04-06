@@ -137,5 +137,3 @@ app.get("/test", (req, res) => res.send("Server is alive"));
 
 // -------------------- START SERVER --------------------
 app.listen(PORT, () => console.log(`✅ Server running on ${PORT}`));
-
-//test

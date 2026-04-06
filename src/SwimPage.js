@@ -26,30 +26,38 @@ function SwimPage() {
   const [newSection, setNewSection] = useState("");
   const [showSectionManager, setShowSectionManager] = useState(false);
 
-  // Autosave weekNumbers
+  // Load saved data from localStorage
   useEffect(() => {
-    localStorage.setItem("swimWeekNumbers", JSON.stringify(weekNumbers));
-  }, [weekNumbers]);
+    const savedWeekStart = localStorage.getItem("week1StartDate");
+    if (savedWeekStart) setWeek1Start(savedWeekStart);
 
-  // Autosave week1Start
+    const savedWeeks = JSON.parse(localStorage.getItem("swimWeekNumbers") || "[]");
+    const savedSessions = JSON.parse(localStorage.getItem("swimSessionsByWeek") || "{}");
+
+    // Ensure weeks are consistent with saved sessions
+    const mergedWeeks = savedWeeks.length ? savedWeeks : Object.keys(savedSessions).map(Number);
+
+    setWeekNumbers(mergedWeeks);
+    setSessionsByWeek(savedSessions);
+  }, []);
+
+  // Save week1Start whenever it changes
   useEffect(() => {
     if (week1Start) localStorage.setItem("week1StartDate", week1Start);
   }, [week1Start]);
 
-  // Load saved start date & fetch from backend
-  useEffect(() => {
-    const savedWeekStart = localStorage.getItem("week1StartDate");
-    if (savedWeekStart) setWeek1Start(savedWeekStart);
-    fetchFromBackend();
-  }, []);
-
-  const updateSessions = (newSessions) => {
-    setSessionsByWeek(newSessions);
+  const updateSessions = (week, newWeekData) => {
+    setSessionsByWeek((prev) => {
+      const updated = { ...prev, [week]: newWeekData };
+      localStorage.setItem("swimSessionsByWeek", JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const addSectionOption = () => {
     if (newSection.trim() && !sectionOptions.includes(newSection.trim())) {
-      setSectionOptions([...sectionOptions, newSection.trim()]);
+      const updated = [...sectionOptions, newSection.trim()];
+      setSectionOptions(updated);
       setNewSection("");
     }
   };
@@ -60,23 +68,30 @@ function SwimPage() {
 
   const addNewWeek = () => {
     const nextWeek = Math.max(...weekNumbers) + 1;
-    setWeekNumbers((prev) => [...prev, nextWeek]);
-    updateSessions({ ...sessionsByWeek, [nextWeek]: [] });
+    const newWeeks = [...weekNumbers, nextWeek];
+    setWeekNumbers(newWeeks);
+    localStorage.setItem("swimWeekNumbers", JSON.stringify(newWeeks));
+    updateSessions(nextWeek, []);
   };
 
   const removeNewWeek = () => {
     if (weekNumbers.length <= 1) return;
     const lastWeek = weekNumbers[weekNumbers.length - 1];
-    setWeekNumbers((prev) => prev.slice(0, -1));
+    const newWeeks = weekNumbers.slice(0, -1);
+    setWeekNumbers(newWeeks);
+    localStorage.setItem("swimWeekNumbers", JSON.stringify(newWeeks));
+
     const copy = { ...sessionsByWeek };
     delete copy[lastWeek];
-    updateSessions(copy);
+    setSessionsByWeek(copy);
+    localStorage.setItem("swimSessionsByWeek", JSON.stringify(copy));
   };
 
   const updateWeekNumber = (index, newWeek) => {
     setWeekNumbers((prev) => {
       const updated = [...prev];
       updated[index] = Number(newWeek);
+      localStorage.setItem("swimWeekNumbers", JSON.stringify(updated));
       return updated;
     });
   };
@@ -151,7 +166,7 @@ function SwimPage() {
     }
 
     const weekSessions = sessionsByWeek[week] || [];
-    updateSessions({ ...sessionsByWeek, [week]: [...weekSessions, createdItem] });
+    updateSessions(week, [...weekSessions, createdItem]);
   };
 
   const addRowBelow = async (week, index) => {
@@ -186,7 +201,7 @@ function SwimPage() {
       ...weekSessions.slice(index + 1),
     ];
 
-    updateSessions({ ...sessionsByWeek, [week]: updatedWeek });
+    updateSessions(week, updatedWeek);
   };
 
   const removeRow = async (week, index) => {
@@ -197,14 +212,14 @@ function SwimPage() {
       if (!ok) return;
     }
     const updatedWeek = weekSessions.filter((_, i) => i !== index);
-    updateSessions({ ...sessionsByWeek, [week]: updatedWeek });
+    updateSessions(week, updatedWeek);
   };
 
   const handleChange = async (week, index, field, value) => {
     const weekSessions = sessionsByWeek[week] || [];
     const updatedWeek = [...weekSessions];
     updatedWeek[index] = { ...updatedWeek[index], [field]: value };
-    updateSessions({ ...sessionsByWeek, [week]: updatedWeek });
+    updateSessions(week, updatedWeek);
 
     const row = updatedWeek[index];
     if (row.id) {
@@ -214,7 +229,7 @@ function SwimPage() {
       if (created && created.length) {
         const createdItem = created[created.length - 1];
         updatedWeek[index] = createdItem;
-        updateSessions({ ...sessionsByWeek, [week]: updatedWeek });
+        updateSessions(week, updatedWeek);
       }
     }
   };
@@ -232,42 +247,9 @@ function SwimPage() {
         body: JSON.stringify({ swim: allSessions }),
       });
       alert("✅ Changes published to backend");
-      await fetchFromBackend();
     } catch (err) {
       alert("⚠️ Error publishing changes.");
     }
-  };
-
-  const fetchFromBackend = async () => {
-    try {
-      const res = await fetch("http://localhost:5000/swim-sessions");
-      if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json();
-      if (data && data.swim) {
-        const regrouped = {};
-        data.swim.forEach((s) => {
-          const w = s.week || 1;
-          if (!regrouped[w]) regrouped[w] = [];
-          regrouped[w].push(s);
-        });
-        updateSessions(regrouped);
-        setWeekNumbers(Object.keys(regrouped).map(Number).sort((a, b) => a - b));
-      }
-    } catch (err) {
-      const saved = localStorage.getItem("swimSessionsByWeek");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setSessionsByWeek(parsed);
-        const weeks = Object.keys(parsed).map(Number);
-        if (weeks.length) setWeekNumbers(weeks);
-      }
-    }
-
-    try {
-      const res2 = await fetch("http://localhost:5000/week-start-date");
-      const data2 = await res2.json();
-      if (data2.weekStartDate) setWeek1Start(data2.weekStartDate);
-    } catch {}
   };
 
   const getRowColor = (section) => {
@@ -482,7 +464,7 @@ function SwimPage() {
                         {visibleColumns.section && (
                           <td className="border px-1 py-1 text-center">
                             <select
-                                                            value={session.section || ""}
+                              value={session.section || ""}
                               onChange={(e) =>
                                 handleChange(week, rowIndex, "section", e.target.value)
                               }
@@ -587,16 +569,9 @@ function SwimPage() {
         >
           Publish to App
         </button>
-        <button
-          onClick={fetchFromBackend}
-          className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 ml-auto"
-        >
-          Save
-        </button>
       </div>
     </div>
   );
 }
 
 export default SwimPage;
-                                
