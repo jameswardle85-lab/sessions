@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Optional global styles */
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Make date picker icon white */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1); /* turns black icons white */
+}
