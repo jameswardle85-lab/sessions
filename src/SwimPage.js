@@ -96,142 +96,60 @@ function SwimPage() {
     });
   };
 
-  const POST_ROWS = async (rows) => {
-    if (!rows || rows.length === 0) return null;
-    try {
-      const res = await fetch("http://localhost:5000/swim-sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ swim: Array.isArray(rows) ? rows : [rows] }),
-      });
-      if (!res.ok) throw new Error("Failed to POST swim rows");
-      const data = await res.json();
-      return data.swim || null;
-    } catch (err) {
-      console.error("POST_ROWS error:", err);
-      return null;
-    }
+  const addSession = (week) => {
+  const newRow = {
+    week,
+    date: "",
+    title: "",
+    section: "",
+    set: "",
+    distance: "",
+    notes: "",
+    rounds: "",
+    setGroup: "",
+    isSessionRow: true,
   };
 
-  const PUT_ROW = async (id, row) => {
-    try {
-      const res = await fetch(`http://localhost:5000/swim-sessions/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(row),
-      });
-      if (!res.ok) throw new Error("Failed to PUT swim row");
-      const data = await res.json();
-      return data.swim || data;
-    } catch (err) {
-      console.error("PUT_ROW error:", err);
-      return null;
-    }
+  const weekSessions = sessionsByWeek[week] || [];
+  updateSessions(week, [...weekSessions, newRow]);
+};
+
+  const addRowBelow = (week, index) => {
+  const weekSessions = sessionsByWeek[week] || [];
+
+  const newRow = {
+    week,
+    section: "",
+    set: "",
+    distance: "",
+    notes: "",
+    rounds: "",
+    setGroup: "",
+    isSessionRow: false,
   };
 
-  const DELETE_ROW = async (id) => {
-    try {
-      const res = await fetch(`http://localhost:5000/swim-sessions/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to DELETE swim row");
-      return true;
-    } catch (err) {
-      console.error("DELETE_ROW error:", err);
-      return false;
-    }
-  };
-
-  const addSession = async (week) => {
-    const newRow = {
-      week,
-      date: "",
-      title: "",
-      section: "",
-      set: "",
-      distance: "",
-      notes: "",
-      rounds: "",
-      setGroup: "",
-      isNew: true,
-      isSessionRow: true,
-    };
-
-    const created = await POST_ROWS(newRow);
-    let createdItem = newRow;
-    if (created && created.length) {
-      createdItem = created[created.length - 1];
-      createdItem.isNew = false;
-      createdItem.isSessionRow = true;
-    }
-
-    const weekSessions = sessionsByWeek[week] || [];
-    updateSessions(week, [...weekSessions, createdItem]);
-  };
-
-  const addRowBelow = async (week, index) => {
-    const weekSessions = sessionsByWeek[week] || [];
-    let parentSession = null;
-    for (let i = index; i >= 0; i--) {
-      if (weekSessions[i].isSessionRow) {
-        parentSession = weekSessions[i];
-        break;
-      }
-    }
-    if (!parentSession) return;
-
-    const newRow = {
-      week,
-      section: "",
-      set: "",
-      distance: "",
-      notes: "",
-      rounds: "",
-      setGroup: "",
-      isNew: true,
-      isSessionRow: false,
-    };
-
-    const created = await POST_ROWS(newRow);
-    const createdItem = created && created.length ? created[created.length - 1] : newRow;
-
-    const updatedWeek = [
-      ...weekSessions.slice(0, index + 1),
-      createdItem,
-      ...weekSessions.slice(index + 1),
-    ];
+  const updatedWeek = [
+    ...weekSessions.slice(0, index + 1),
+    newRow,
+    ...weekSessions.slice(index + 1),
+  ];
 
     updateSessions(week, updatedWeek);
   };
 
-  const removeRow = async (week, index) => {
+  const removeRow = (week, index) => {
     const weekSessions = sessionsByWeek[week] || [];
-    const toRemove = weekSessions[index];
-    if (toRemove && toRemove.id) {
-      const ok = await DELETE_ROW(toRemove.id);
-      if (!ok) return;
-    }
     const updatedWeek = weekSessions.filter((_, i) => i !== index);
     updateSessions(week, updatedWeek);
   };
 
-  const handleChange = async (week, index, field, value) => {
+  const handleChange = (week, index, field, value) => {
     const weekSessions = sessionsByWeek[week] || [];
     const updatedWeek = [...weekSessions];
-    updatedWeek[index] = { ...updatedWeek[index], [field]: value };
-    updateSessions(week, updatedWeek);
 
-    const row = updatedWeek[index];
-    if (row.id) {
-      await PUT_ROW(row.id, row);
-    } else {
-      const created = await POST_ROWS(row);
-      if (created && created.length) {
-        const createdItem = created[created.length - 1];
-        updatedWeek[index] = createdItem;
-        updateSessions(week, updatedWeek);
-      }
-    }
+    updatedWeek[index] = { ...updatedWeek[index], [field]: value };
+
+    updateSessions(week, updatedWeek);
   };
 
   const toggleColumn = (col) => {
@@ -286,11 +204,6 @@ function SwimPage() {
             const value = e.target.value;
             setWeek1Start(value);
             localStorage.setItem("week1StartDate", value);
-            fetch("http://localhost:5000/week-start-date", {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ weekStartDate: value }),
-            }).catch((err) => console.error("Failed to save week start:", err));
           }}
           className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white"
         />

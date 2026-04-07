@@ -23,16 +23,23 @@ function GymPage() {
   const [newSection, setNewSection] = useState("");
   const [showSectionManager, setShowSectionManager] = useState(false);
 
-  // Load sessions from backend on mount
-  useEffect(() => {
-    fetchFromBackend();
-  }, []);
-
   // CENTRALIZED FUNCTION TO UPDATE STATE + LOCALSTORAGE
   const updateSessions = (newSessions) => {
     setSessionsByWeek(newSessions);
     localStorage.setItem("gymSessionsByWeek", JSON.stringify(newSessions));
   };
+
+  // Load saved data from localStorage
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem("gymSessionsByWeek"));
+
+    if (saved) {
+      setSessionsByWeek(saved);
+      setWeekNumbers(
+        Object.keys(saved).map(Number).sort((a, b) => a - b)
+      );
+    }
+  }, []);
 
   // Section manager
   const addSectionOption = () => {
@@ -67,53 +74,8 @@ function GymPage() {
     });
   };
 
-  // API helpers
-  const POST_ROWS = async (rows) => {
-    if (!rows || rows.length === 0) return null;
-    try {
-      const res = await fetch("http://localhost:5000/gym-sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gym: Array.isArray(rows) ? rows : [rows] }),
-      });
-      if (!res.ok) throw new Error("Failed to POST gym rows");
-      const data = await res.json();
-      return data.gym || null;
-    } catch (err) {
-      console.error("POST_ROWS error:", err);
-      return null;
-    }
-  };
-  const PUT_ROW = async (id, row) => {
-    try {
-      const res = await fetch(`http://localhost:5000/gym-sessions/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(row),
-      });
-      if (!res.ok) throw new Error("Failed to PUT gym row");
-      const data = await res.json();
-      return data.gym || data;
-    } catch (err) {
-      console.error("PUT_ROW error:", err);
-      return null;
-    }
-  };
-  const DELETE_ROW = async (id) => {
-    try {
-      const res = await fetch(`http://localhost:5000/gym-sessions/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to DELETE gym row");
-      return true;
-    } catch (err) {
-      console.error("DELETE_ROW error:", err);
-      return false;
-    }
-  };
-
   // Session/Row management
-  const addSession = async (week) => {
+  const addSession = (week) => {
     const newRow = {
       week,
       date: "",
@@ -128,12 +90,16 @@ function GymPage() {
       isNew: true,
       isSessionRow: true,
     };
-    const created = await POST_ROWS(newRow);
-    const createdItem = created && created.length ? created[created.length - 1] : newRow;
+
     const weekSessions = sessionsByWeek[week] || [];
-    updateSessions({ ...sessionsByWeek, [week]: [...weekSessions, createdItem] });
+
+    updateSessions({
+      ...sessionsByWeek,
+      [week]: [...weekSessions, newRow],
+    });
   };
-  const addRowBelow = async (week, index) => {
+
+  const addRowBelow = (week, index) => {
     const newRow = {
       week,
       section: "",
@@ -146,45 +112,45 @@ function GymPage() {
       isNew: true,
       isSessionRow: false,
     };
-    const created = await POST_ROWS(newRow);
-    const createdItem = created && created.length ? created[created.length - 1] : newRow;
+
     const weekSessions = sessionsByWeek[week] || [];
+
     const updatedWeek = [
       ...weekSessions.slice(0, index + 1),
-      createdItem,
+      newRow,
       ...weekSessions.slice(index + 1),
     ];
-    updateSessions({ ...sessionsByWeek, [week]: updatedWeek });
+
+    updateSessions({
+      ...sessionsByWeek,
+      [week]: updatedWeek,
+    });
   };
-  const removeRow = async (week, index) => {
+
+  const removeRow = (week, index) => {
     const weekSessions = sessionsByWeek[week] || [];
-    const toRemove = weekSessions[index];
-    if (toRemove && toRemove.id) {
-      const ok = await DELETE_ROW(toRemove.id);
-      if (!ok) {
-        alert("⚠️ Failed to delete on server. Row not removed locally.");
-        return;
-      }
-    }
+
     const updatedWeek = weekSessions.filter((_, i) => i !== index);
-    updateSessions({ ...sessionsByWeek, [week]: updatedWeek });
+
+    updateSessions({
+      ...sessionsByWeek,
+      [week]: updatedWeek,
+    });
   };
-  const handleChange = async (week, index, field, value) => {
+
+  const handleChange = (week, index, field, value) => {
     const weekSessions = sessionsByWeek[week] || [];
     const updatedWeek = [...weekSessions];
-    updatedWeek[index] = { ...updatedWeek[index], [field]: value };
-    updateSessions({ ...sessionsByWeek, [week]: updatedWeek });
 
-    const row = updatedWeek[index];
-    if (row.id) {
-      await PUT_ROW(row.id, row);
-    } else {
-      const created = await POST_ROWS(row);
-      if (created && created.length) {
-        updatedWeek[index] = created[created.length - 1];
-        updateSessions({ ...sessionsByWeek, [week]: updatedWeek });
-      }
-    }
+    updatedWeek[index] = {
+      ...updatedWeek[index],
+      [field]: value,
+    };
+
+    updateSessions({
+      ...sessionsByWeek,
+      [week]: updatedWeek,
+    });
   };
 
   const toggleColumn = (col) => {
@@ -194,46 +160,28 @@ function GymPage() {
   const publishToBackend = async () => {
     try {
       const allSessions = Object.values(sessionsByWeek).flat();
-      const newSessions = allSessions.filter((s) => !s.id || s.isNew);
-      const existingSessions = allSessions.filter((s) => s.id && !s.isNew);
 
-      if (newSessions.length > 0) await POST_ROWS(newSessions);
-      for (const s of existingSessions) await PUT_ROW(s.id, s);
+      await fetch("http://localhost:5000/gym-sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gym: allSessions }),
+      });
 
-      alert("✅ All changes synced with backend!");
+      // ✅ Clear isNew flags after publish
+      const cleaned = {};
+      Object.keys(sessionsByWeek).forEach((week) => {
+        cleaned[week] = sessionsByWeek[week].map((row) => ({
+          ...row,
+          isNew: false,
+        }));
+      });
+
+      updateSessions(cleaned);
+
+      alert("✅ Published successfully!");
     } catch (err) {
       console.error("Publish error:", err);
-      alert("⚠️ Error syncing data with backend.");
-    }
-  };
-
-  const fetchFromBackend = async () => {
-    try {
-      const res = await fetch("http://localhost:5000/gym-sessions");
-      if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json();
-      const backendSessions = data.gym || [];
-      const localSessions = Object.values(sessionsByWeek).flat();
-
-      const mergedMap = new Map();
-      [...localSessions, ...backendSessions].forEach((s) => {
-        if (s && s.id) mergedMap.set(s.id, { ...mergedMap.get(s.id), ...s });
-        else mergedMap.set(`temp-${Math.random()}`, { ...s });
-      });
-
-      const merged = Array.from(mergedMap.values());
-      const regrouped = {};
-      merged.forEach((s) => {
-        const week = s.week || 1;
-        if (!regrouped[week]) regrouped[week] = [];
-        regrouped[week].push(s);
-      });
-      updateSessions(regrouped);
-      setWeekNumbers(Object.keys(regrouped).map(Number).sort((a, b) => a - b));
-      alert("✅ Synced with backend successfully!");
-    } catch (err) {
-      console.error("Fetch error:", err);
-      alert("⚠️ Failed to fetch data from backend.");
+      alert("⚠️ Error publishing data.");
     }
   };
 
@@ -621,12 +569,6 @@ function GymPage() {
           className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 ml-auto"
         >
           Publish
-        </button>
-        <button
-          onClick={fetchFromBackend}
-          className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 ml-auto"
-        >
-          Update
         </button>
       </div>
     </div>
