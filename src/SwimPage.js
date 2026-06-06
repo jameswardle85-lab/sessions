@@ -18,13 +18,18 @@ function SwimPage() {
     rounds: true,
     setGroup: true,
   });
+
   const [sectionOptions, setSectionOptions] = useState([
     "Warm Up",
     "Main",
     "Swim Down",
   ]);
+
   const [newSection, setNewSection] = useState("");
   const [showSectionManager, setShowSectionManager] = useState(false);
+
+  const [publishStatus, setPublishStatus] = useState("idle");
+// idle | loading | success | error
 
   // Load saved data from localStorage
   useEffect(() => {
@@ -157,16 +162,25 @@ function SwimPage() {
   };
 
   const publishToBackend = async () => {
+    setPublishStatus("loading");
+
     try {
       const allSessions = Object.values(sessionsByWeek).flat();
+
       await fetch("http://localhost:5000/swim-sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ swim: allSessions }),
       });
-      alert("✅ Changes published to backend");
+
+      setPublishStatus("success");
+
+      // Reset back after a short delay (optional)
+      setTimeout(() => setPublishStatus("idle"), 2000);
     } catch (err) {
-      alert("⚠️ Error publishing changes.");
+      setPublishStatus("error");
+
+      setTimeout(() => setPublishStatus("idle"), 2000);
     }
   };
 
@@ -478,9 +492,19 @@ function SwimPage() {
         </button>
         <button
           onClick={publishToBackend}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 ml-auto"
+          disabled={publishStatus === "loading"}
+          className={`px-4 py-2 rounded ml-auto text-white ${
+            publishStatus === "success"
+              ? "bg-green-500"
+              : publishStatus === "error"
+              ? "bg-red-500"
+              : "bg-green-600 hover:bg-green-700"
+          }`}
         >
-          Publish to App
+          {publishStatus === "loading" && "Updating..."}
+          {publishStatus === "success" && "✅ Updated"}
+          {publishStatus === "error" && "⚠️ Failed"}
+          {publishStatus === "idle" && "Update"}
         </button>
       </div>
     </div>

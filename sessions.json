@@ -2,42 +2,56 @@
   "swim": [
     {
       "week": 1,
-      "date": "2026-04-07",
-      "title": "1",
+      "date": "2026-04-14",
+      "title": "Test1",
       "section": "Warm Up",
       "set": "1",
       "distance": "1",
-      "notes": "1",
+      "notes": "Test1",
       "rounds": "1",
       "setGroup": "1",
       "isSessionRow": true
     },
     {
       "week": 1,
-      "date": "2026-04-08",
-      "title": "2",
+      "date": "2026-04-15",
+      "title": "Test2",
       "section": "Warm Up",
       "set": "2",
       "distance": "2",
-      "notes": "2",
+      "notes": "Test2",
       "rounds": "2",
-      "setGroup": "",
+      "setGroup": "2",
       "isSessionRow": true
     }
   ],
   "gym": [
     {
       "week": 1,
-      "date": "2026-04-08",
-      "title": "2",
+      "date": "2026-04-14",
+      "title": "Test1",
       "section": "Warm Up",
-      "name": "2",
+      "name": "Test1",
+      "sets": "1",
+      "reps": "1",
+      "weight": "1",
+      "round": "1",
+      "setGroup": "1",
+      "isNew": false,
+      "isSessionRow": true
+    },
+    {
+      "week": 1,
+      "date": "2026-04-15",
+      "title": "Test2",
+      "section": "Main",
+      "name": "Test2",
       "sets": "2",
       "reps": "2",
       "weight": "2",
       "round": "2",
       "setGroup": "2",
-      "isNew": false,
+      "isNew": true,
       "isSessionRow": true
     }
   ]

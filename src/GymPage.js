@@ -23,6 +23,9 @@ function GymPage() {
   const [newSection, setNewSection] = useState("");
   const [showSectionManager, setShowSectionManager] = useState(false);
 
+  const [publishStatus, setPublishStatus] = useState("idle");
+  // idle | loading | success | error
+  
   // CENTRALIZED FUNCTION TO UPDATE STATE + LOCALSTORAGE
   const updateSessions = (newSessions) => {
     setSessionsByWeek(newSessions);
@@ -158,6 +161,8 @@ function GymPage() {
   };
 
   const publishToBackend = async () => {
+    setPublishStatus("loading");
+
     try {
       const allSessions = Object.values(sessionsByWeek).flat();
 
@@ -178,10 +183,15 @@ function GymPage() {
 
       updateSessions(cleaned);
 
-      alert("✅ Published successfully!");
+      setPublishStatus("success");
+
+      setTimeout(() => setPublishStatus("idle"), 2000);
     } catch (err) {
       console.error("Publish error:", err);
-      alert("⚠️ Error publishing data.");
+
+      setPublishStatus("error");
+
+      setTimeout(() => setPublishStatus("idle"), 2000);
     }
   };
 
@@ -566,9 +576,19 @@ function GymPage() {
         </button>
         <button
           onClick={publishToBackend}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 ml-auto"
+          disabled={publishStatus === "loading"}
+          className={`px-4 py-2 rounded ml-auto text-white ${
+            publishStatus === "success"
+              ? "bg-green-500"
+              : publishStatus === "error"
+              ? "bg-red-500"
+              : "bg-green-600 hover:bg-green-700"
+          }`}
         >
-          Publish
+          {publishStatus === "loading" && "Updating..."}
+          {publishStatus === "success" && "✅ Updated"}
+          {publishStatus === "error" && "⚠️ Failed"}
+          {publishStatus === "idle" && "Update App"}
         </button>
       </div>
     </div>
