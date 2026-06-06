@@ -1,6 +1,7 @@
 {
   "name": "sessions",
   "version": "0.1.0",
+  "homepage": "https://jameswardle85-lab.github.io/sessions/",
   "private": true,
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
