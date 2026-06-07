@@ -34,13 +34,6 @@ jobs:
       - name: Copy test file
         run: cp api.test.js backend/api.test.js
 
-      - name: Start server in background
-        working-directory: backend
-        run: node server.js &
-
-      - name: Wait for server to be ready
-        run: npx wait-on http://localhost:5000/test --timeout 15000
-
       - name: Run API tests
         working-directory: backend
         run: npx jest api.test.js --verbose

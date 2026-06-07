@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:5000";
+const BASE_URL = "https://sessions-api.onrender.com";
 
 // Helper to make requests
 async function api(method, path, body) {
