@@ -34,6 +34,17 @@ jobs:
       - name: Copy test file
         run: cp api.test.js backend/api.test.js
 
-      - name: Run API tests
+      - name: Run API tests and save results
         working-directory: backend
-        run: npx jest api.test.js --verbose
+        run: npx jest api.test.js --verbose --json --outputFile=test-results.json || true
+
+      - name: Commit test results to repo
+        run: |
+          cp backend/test-results.json test-results.json
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add test-results.json
+          git diff --staged --quiet || git commit -m "Update test results [skip ci]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
