@@ -594,5 +594,5 @@ function GymPage() {
     </div>
   );
 }
-// test 
+
 export default GymPage;
