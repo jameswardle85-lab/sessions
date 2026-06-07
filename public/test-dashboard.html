@@ -199,7 +199,7 @@
     }
 
     .tick.pass { background: rgba(0,230,118,0.12); color: var(--pass); }
-    .tick.tick.fail { background: rgba(255,23,68,0.12); color: var(--fail); }
+    .tick.fail { background: rgba(255,23,68,0.12); color: var(--fail); }
 
     .test-name {
       font-size: 13px;
@@ -245,25 +245,22 @@
 </div>
 
 <script>
-  // Fetches test-results.json from the same repo on GitHub
   const OWNER = 'jameswardle85-lab';
   const REPO  = 'sessions';
   const FILE  = 'test-results.json';
-  const API   = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`;
 
   async function load() {
     try {
-      const res  = await fetch(API, { headers: { Accept: 'application/vnd.github.v3+json' } });
-      if (!res.ok) throw new Error(`GitHub API responded with ${res.status}`);
-      const meta = await res.json();
-      const json = JSON.parse(atob(meta.content.replace(/\n/g, '')));
+      const url = `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${FILE}?t=${Date.now()}`;
+      const res  = await fetch(url);
+      if (!res.ok) throw new Error(`Could not fetch results: ${res.status}`);
+      const json = await res.json();
       render(json);
     } catch (err) {
       document.getElementById('app').innerHTML = `
         <div class="state">
           <div class="icon">⚠️</div>
-          Could not load test results.<br/>
-          Make sure the workflow has run at least once and committed test-results.json to the repo.<br/><br/>
+          Could not load test results.<br/><br/>
           <small>${err.message}</small>
         </div>`;
     }
@@ -271,7 +268,7 @@
 
   function render(json) {
     const suite   = json.testResults?.[0];
-    const tests   = suite?.testResults || [];
+    const tests   = suite?.assertionResults || [];
     const total   = tests.length;
     const passed  = tests.filter(t => t.status === 'passed').length;
     const failed  = total - passed;
@@ -282,7 +279,7 @@
 
     const items = tests.map((t, i) => {
       const ok   = t.status === 'passed';
-      const name = t.fullName || t.ancestorTitles?.join(' › ') + ' › ' + t.title || `Test ${i+1}`;
+      const name = t.fullName || `Test ${i+1}`;
       const dur  = t.duration != null ? `${t.duration}ms` : '';
       return `
         <div class="test-item ${ok ? 'pass' : 'fail'}" style="animation-delay:${i * 40}ms">
